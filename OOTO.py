@@ -18,7 +18,7 @@ import numpy as np
 import MySQLdb
 from collections import Counter
 import dropbox
-dbx = dropbox.Dropbox("fk7KkPvKLrAAAAAAAAAAUguBKTQT9memYobUvzScwbHHd5OIToAVBaNUhd-cYUXW")
+dbx = dropbox.Dropbox("ACCESS TOKEN")
 
 # Initialization of database connection
 db = MySQLdb.connect(host="remotemysql.com",
