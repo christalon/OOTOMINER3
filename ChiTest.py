@@ -3,7 +3,7 @@ import math
 import numpy as np
 import sys
 import string
-
+from importlib import reload
 import xlsxwriter
 
 from Table import Table
@@ -12,7 +12,7 @@ from clean import ColConverter
 
 
 def writeOnCSV(rows, filename):
-    with open(filename, 'wb') as f:
+    with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
@@ -38,7 +38,7 @@ def writeonXLSX(rows, filename, header):
                         elif(isinstance(rows[row][col],list)):
                                 #Write the first element of it
                                 ws.write(row+1,col,rows[row][col][0])
-                        elif(isinstance(rows[row][col],basestring)):
+                        elif(isinstance(rows[row][col],str)):
                                 string = str(rows[row][col])
                                 '''
                                 try:
@@ -105,22 +105,22 @@ def readCSV(filename,isHead = True):
         count = 0
         with open(filename) as csvfile:
             readCSV = csv.reader(csvfile, delimiter=',')
-        for row in readCSV: #Iterate through each row in the dataset
-            if(not (count==0 and isHead)): #If not the row is not the header
-                for i in range(0,len(row)): #Iterate over the answers in each row
-                    if(RepresentsInt(row[i])):
-                        #print "REPRESENTS " + row[i]
-                        temp = int(row[i])
-                        row[i] = str(temp)
+            for row in readCSV: #Iterate through each row in the dataset
+                if(not (count==0 and isHead)): #If not the row is not the header
+                    for i in range(0,len(row)): #Iterate over the answers in each row
+                        if(RepresentsInt(row[i])):
+                            #print "REPRESENTS " + row[i]
+                            temp = int(row[i])
+                            row[i] = str(temp)
 
-                    elif(RepresentsFloat(row[i])):
-                        #print "REPRESENTS " + row[i]
-                        temp = float(row[i])
-                        temp = int(temp)
-                        row[i] = str(temp)
+                        elif(RepresentsFloat(row[i])):
+                            #print "REPRESENTS " + row[i]
+                            temp = float(row[i])
+                            temp = int(temp)
+                            row[i] = str(temp)
 
-                rows.append(row)
-            count =  count +1
+                    rows.append(row)
+                count =  count +1
         return rows
 
 
@@ -553,7 +553,7 @@ def getVariableList(filename, varMarker): #Reads the question
 
 def chiTest(datasetPaths):
   reload(sys)
-  sys.setdefaultencoding('utf8')
+  #sys.setdefaultencoding('utf8')
   #change to ur own.
   vList = getVariableList('Updated-Variables.csv', '^') #Get Variable Description
   header = readHeader(datasetPaths[0]) #Read the header from one of the datasets which include the question codes

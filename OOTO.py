@@ -18,13 +18,15 @@ import numpy as np
 import MySQLdb
 from collections import Counter
 import dropbox
-dbx = dropbox.Dropbox("ACCESS TOKEN")
+dbx = dropbox.Dropbox("Access Code")
 
 # Initialization of database connection
 db = MySQLdb.connect(host="remotemysql.com",
                      user="f6XDzBXhjr",        
-                     passwd="SZclvI5DKB",  
-                     db="f6XDzBXhjr")        
+                     passwd="",  
+                     db="f6XDzBXhjr")
+resultsFromDB = [];
+filenameFromDB = "";
 
 try:
     from Tkinter import *
@@ -80,6 +82,7 @@ def readFeatures(filename, varMark):
             else:
                 new_response = {'Group':row[0], 'Code':row[2], 'Description':row[3]}
                 new_feature['Responses'].append(new_response)
+
     return features
 
 '''
@@ -87,15 +90,20 @@ Reads features and their responses from the Variable Description file from the d
 '''
 def readFeaturesFromDB(surveyCode, varMark):
     features = []
+    qCodeList = []
     file_id = ""
-    
+    global filenameFromDB
+
+    qCodeList.append("respondent");
     cur = db.cursor()
     cur.execute("SELECT * FROM survey WHERE surveyCode = '"+ surveyCode +"'")
 
     for row in cur.fetchall():
         file_id = row[1]
         filename = row[2]
-    
+
+    filenameFromDB = filename
+
     with open(filename + ".csv", "wb") as f:
         metadata, res = dbx.files_download(path = file_id+"")
         f.write(res.content)
@@ -106,10 +114,14 @@ def readFeaturesFromDB(surveyCode, varMark):
             if(row[0]==varMark):
                 new_feature = {'Description':row[3], 'Code':row[2], 'Responses':[]}
                 features.append(new_feature)
+                lastQCode = row[2]
             else:
                 new_response = {'Group':row[0], 'Code':row[2], 'Description':row[3]}
                 new_feature['Responses'].append(new_response)
-                
+                if lastQCode not in qCodeList:
+                    qCodeList.append(lastQCode);
+
+    resultsFromDB.append(qCodeList);
     return features
         
     
@@ -150,7 +162,7 @@ def readCSVDict(filename):
 Writes a list of dictionaries into a .csv file
 '''
 def writeCSVDict(filename, dataset):
-    with open(filename, 'wb') as f:
+    with open(filename, 'w', newline='') as f:
         w = csv.DictWriter(f, dataset[0].keys())
         w.writeheader()
         w.writerows(dataset)
@@ -162,6 +174,14 @@ def writeOnCSV(rows, filename):
     with open(filename, 'wb') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
+
+'''
+Writes a set of rows into a .csv file given the filename
+'''
+def writeOnCSVList(rows, filename):
+    with open(filename + " results.csv", 'w', newline='') as f:
+        wr = csv.writer(f, quoting=csv.QUOTE_ALL)
+        wr.writerows(rows)
 
 '''
 Returns a new dataset by filtering from the old one based on a feature and its selected values
@@ -244,7 +264,7 @@ Writes converted features (where the values are converted to their groups)
 into a csv file
 '''
 def makeUpdatedVariables(features, fileName):
-    with open(fileName, "wb") as csv_file:
+    with open(fileName, "w",  newline='') as csv_file:
         writer = csv.writer(csv_file, delimiter=',')
         for feature in features:
             featureRow = []
@@ -486,6 +506,56 @@ def saveDatasetFile(dataset):
     fileName = makeFileName(dataset)
     writeCSVDict(fileName, dataset['Data'])
     return fileName
+
+
+def compileResultsFromDatabase(surveyCode):
+    lastQCode = ""
+    respondentResult = []
+    allResults = []
+    answers = []
+    lastRespondentID = ""
+    lastAnswerCode = ""
+
+    cur = db.cursor()
+    cur.execute("SELECT respondentID, questionCode, answer FROM respondents WHERE surveyID = '" + surveyCode + "' ORDER BY respondents.respondentID ASC, respondents.questionCode ASC")
+
+    for row in cur.fetchall():
+        if (lastRespondentID != row[0] and lastRespondentID != ""):
+            respondentResult.append([lastRespondentID, answers])
+            allResults.append(respondentResult)
+            respondentResult = []
+            answers = []
+
+            answers.append([row[1], row[2]])
+        else:
+            answers.append([row[1], row[2]])
+        lastRespondentID = row[0]
+
+    respondentResult = []
+
+    for respondent in allResults:
+        answerIndex = 0
+        respondentResult.append(respondent[0][0])
+        for code in resultsFromDB[0]:
+            if(code != "respondent"):
+                found = False
+                for answer in respondent[0][1]:
+                    if(answer[0] == code):
+                        if(answer[0] != lastAnswerCode):
+                            respondentResult.append(answer[1])
+                            found = True
+                        else:
+                            found = True
+                    lastAnswerCode = answer[0]
+                if(found == False):
+                    respondentResult.append(99)
+        resultsFromDB.append(respondentResult);
+        respondentResult = []
+
+    writeOnCSVList(resultsFromDB, filenameFromDB)
+
+
+
 
 
 class OOTO_Miner:
@@ -1702,7 +1772,23 @@ class OOTO_Miner:
             self.labelQueryDataBCount.configure(text="n: " + str(len(self.datasetB['Data'])) )
         else:
             messagebox.showerror("Error: Upload error", "Error uploading population dataset. Please try again.")
-    
+
+    def setPopulationFromDatabase(self):
+
+        self.populationDataset = readCSVDict(filenameFromDB + " results.csv")
+        self.datasetA['Data'] = []
+        self.datasetB['Data'] = []
+
+        if (len(list(self.populationDataset)) > 0):
+            messagebox.showinfo("Population set", "Population dataset uploaded")
+            self.populationDataset = readCSVDict(filenameFromDB + " results.csv")
+            for record in self.populationDataset:
+                self.datasetA['Data'].append(record)
+                self.datasetB['Data'].append(record)
+            self.labelQueryDataACount.configure(text="n: " + str(len(self.datasetA['Data'])))
+            self.labelQueryDataBCount.configure(text="n: " + str(len(self.datasetB['Data'])))
+        else:
+            messagebox.showerror("Error: Upload error", "Error uploading population dataset. Please try again.")
 
     '''
     Function that happens when the 'Enqueue' button is pressed.
@@ -1737,6 +1823,8 @@ class OOTO_Miner:
                     writeCSVDict(fileName, dataset['Data'])
                     fileNames.append(fileName)
                 if not (os.path.isfile("Updated-Variables.csv")):
+                    makeUpdatedVariables(features, "Updated-Variables.csv")
+                else:
                     makeUpdatedVariables(features, "Updated-Variables.csv")
                 saveFile = ct.chiTest(fileNames)
                 tempString = "Chi-test complete. " + str(i) + "/" + str(len(tests)) + "complete."
@@ -2176,6 +2264,8 @@ class OOTO_Miner:
         features = readFeaturesFromDB(initDBVarDisc,"^")
         if (len(features)) > 0:
             messagebox.showinfo("Variable description set","Variable description uploaded")
+            compileResultsFromDatabase(initDBVarDisc)
+            self.setPopulationFromDatabase()
             #getCommonGroups(features)
         else:
             messagebox.showerror("Error: Upload Variable description", "Error uploading variable description. Please try again.")

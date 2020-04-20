@@ -71,7 +71,7 @@ b,,4,Poor,May pagkukulang
 a,,0,DLSU Arrows Shuttle,DLSU Arrows Shuttle
 b,,1,DLSU Swimming Team,DLSU Swimming Team
 b,,2,DLSU Green Archers,DLSU Green Archers
-^,,3,DLSU Enlistment,
+^,0,a1v,DLSU Enlistment,
 ^,1,a1w,Can you access ANIMO.SYS during enlistment?,Nabubuksan mo ba ang ANIMO.SYS tuwing enlistment?
 a,a1x,0,Yes,Oo
 b,a1y,1,No,Hindi
